@@ -1,10 +1,13 @@
 import streamlit as st
 import sqlite3
+from PIL import Image, ImageDraw
+from io import BytesIO
+import base64
 
 # App config
 st.set_page_config(page_title="Health FRS", layout="centered")
 
-# Hide default Streamlit UI
+# Hide Streamlit default UI
 st.markdown("""
     <style>
         #MainMenu, header, footer {visibility: hidden;}
@@ -16,29 +19,27 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Center Title
+# Title
 st.markdown(
     "<h1 style='text-align: center; font-family: Arial;'>Health <span style='color: red;'>FRS</span></h1>",
     unsafe_allow_html=True
 )
 
-# Replace this with your logo if needed
-# st.image("logo.png", width=100)
+# Department Mapping
+departments = {
+    "MLHP Bodabandla": "Haripriya",
+    "MLHP Bangarupalyem": "Puneeth",
+    "MLHP Moglimittoor": "Ravali",
+    "MLHP Nalagampalli": "Manjusha"
+}
 
 # Login Form
 with st.form("login_form", clear_on_submit=False):
     st.markdown("### ")
     username = st.text_input("User Id", placeholder="Enter User ID")
     password = st.text_input("Password", placeholder="Enter Password", type="password")
+    department = st.selectbox("Select Department", list(departments.keys()))
     login_btn = st.form_submit_button("LOGIN")
-
-# Footer - App Version and Credits
-st.markdown("""
-    <div style='text-align: center; padding-top: 20px;'>
-        <p style='font-size: 13px;'>App Version : 1.0.14</p>
-        <p style='color: green; font-size: 14px;'>Designed & Developed By RNIT</p>
-    </div>
-""", unsafe_allow_html=True)
 
 # DB Login Logic
 if login_btn:
@@ -49,7 +50,45 @@ if login_btn:
     conn.close()
 
     if user:
-        st.success("Login successful!")
+        # Store session data
+        st.session_state["username"] = username
+        st.session_state["department"] = department
+        st.session_state["mlhp_name"] = departments[department]
+
+        st.success(f"Welcome {departments[department]} from {department}!")
         st.switch_page("pages/1_Capture.py")
     else:
         st.error("Invalid credentials.")
+
+# Footer with circular image
+def circular_image_base64(img_path, size=(60, 60)):
+    img = Image.open(img_path).convert("RGB").resize(size)
+    bigsize = (img.size[0] * 3, img.size[1] * 3)
+    mask = Image.new('L', bigsize, 0)
+    draw = ImageDraw.Draw(mask)
+    draw.ellipse((0, 0) + bigsize, fill=255)
+    mask = mask.resize(img.size, Image.LANCZOS)
+    img.putalpha(mask)
+    output = BytesIO()
+    img.save(output, format="PNG")
+    return base64.b64encode(output.getvalue()).decode()
+
+# Load circular image and show footer
+try:
+    img_base64 = circular_image_base64("rachakonda.png")
+    footer_html = f"""
+        <div style='text-align: center; margin-top: 30px;'>
+            <img src="data:image/png;base64,{img_base64}" style="border-radius: 50%; width: 60px; height: 60px;"/>
+            <div style="color: green; font-weight: bold; margin-top: 5px;">Designed & Developed by Rachakonda Sai</div>
+            <div style="font-size: 13px;">App Version : 1.0.14</div>
+        </div>
+    """
+except Exception as e:
+    footer_html = """
+        <div style='text-align: center; margin-top: 30px;'>
+            <div style="color: green; font-weight: bold; margin-top: 5px;">Designed & Developed by Rachakonda Sai</div>
+            <div style="font-size: 13px;">App Version : 1.0.14</div>
+        </div>
+    """
+
+st.markdown(footer_html, unsafe_allow_html=True)
